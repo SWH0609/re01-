@@ -1,13 +1,27 @@
+javascript:
 !(function() {
+    var textCanvas = document.createElement("canvas");
+    textCanvas.width = 1000;
+    textCanvas.height = 300;
+    var textctx = textCanvas.getContext("2d");
+    textctx.fillStyle = "#000000";
+    textctx.fillRect(0,0,textCanvas.width,textCanvas.height);
 
     var canvas = document.createElement("canvas");
     document.body.appendChild(canvas);
+
+    canvas.style.position= "fixed";
+	canvas.style.left = "0";
+	canvas.style.top = "0";
+	canvas.style.zIndex = -1;
 
     var context = canvas.getContext("2d");
 
     function resizeCanvas(){
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+
+        clearCanvas();
     }
     
     function clearCanvas(){
@@ -16,69 +30,110 @@
     }
 
     resizeCanvas();
-    clearCanvas();
-
+    
     window.addEventListener("resize",resizeCanvas);
 
     function mouseDownHandler(e){
             var x = e.clientX;
             var y = e.clientY;
 
-            createFireworks(x,y);
+            createFireworks(x,y,["小猪","生日快乐","永远开心"][Math.floor(Math.random()*3)]);
     }
     document.addEventListener("mousedown",mouseDownHandler);
 
     var particles = [];
 
-    setInterval(function(){
-        createFireworks(Math.random()*canvas.width,Math.random()*canvas.height)
-    },1000 );
 
-    
+    function createFireworks(x,y,text=""){
 
-    function createFireworks(x,y){
-        var count = 100;
-        var radius = 0;
 
-        var hue = Math.floor(Math.random()*51)+150;
+        var hue = Math.random() * 360;
         var hueVariance =30;
 
-        for(var i = 0;i<count;i++){
+		function setupColors(p){
+			p.hue = Math.floor(Math.random() * ((hue + hueVariance) - (hue - hueVariance))) + (hue - hueVariance);
+			p.brightness = Math.floor(Math.random() * 21) + 50;
+			p.alpha = (Math.floor(Math.random() * 61) + 40) / 100;
+        }
+
+        if(text!=""){
+			
+			var gap = 6;
+			var fontSize = 120;
+
+			textctx.font=fontSize+"px Verdana";
+			textctx.fillStyle = "#ffffff";
+			
+			var textWidth = textctx.measureText(text).width;
+			var textHeight = fontSize;
+			
+			textctx.fillText(text,0,textHeight);
+			var imgData = textctx.getImageData(0,0,textWidth,textHeight*1.2);
+			
+			textctx.fillStyle = "#000000";
+			textctx.fillRect(0,0,textCanvas.width,textCanvas.height);
+
+			for (var h = 0; h < textHeight*1.2; h+=gap) {
+			    for(var w = 0; w < textWidth; w+=gap){
+			            var position = (textWidth * h + w) * 4;
+			            var r = imgData.data[position], g = imgData.data[position + 1], b = imgData.data[position + 2], a = imgData.data[position + 3];
+			    
+			    		if(r+g+b==0)continue;
+
+			            var p = {};
+
+						p.x = x;
+						p.y = y;
+
+						p.fx = x + w - textWidth/2;
+						p.fy = y + h - textHeight/2;
+
+						p.size = Math.floor(Math.random()*2)+1;
+						p.speed = 1;
+
+						setupColors(p);
+
+						particles.push(p);
+			    }
+            }
+        }else{
+            var count = 100;
+            for(var i = 0;i<count;i++){
             var angle = 360/count *i;
             var radians = angle *Math.PI/180;
 
             var p = {};
 
             p.x = x;
-            p.y = y;
-            p.radians = radians;
-            p.radius = radius;
-            p.size = 2;
+				p.y = y;
+				p.radians = radians;
+				
+				//大小
+				p.size = Math.random()*2+1;
 
-            p.speed = (Math.random()*5)+.4;
-            p.radius = p.speed;
+				//速度
+				p.speed = Math.random()*5+.4;
 
-            p.hue = Math.floor(Math.random()*
-                ((hue + hueVariance)-(hue- hueVariance))) +(hue-hueVariance);
-            p.brightness = Math.floor(Math.random()*31)+50;
-            p.alpha = (Math.floor(Math.random()*61)+40) / 100;
+				//半径
+				p.radius = Math.random()*81+50;
 
-            particles.push(p);
-        }
-    }
+				p.fx = x + Math.cos(radians) * p.radius;
+				p.fy = y + Math.sin(radians) * p.radius;
+
+				setupColors(p);
+
+				particles.push(p);
+             }
+            }
+      }   
     function drawFireworks(){
         clearCanvas();
 
         for(var i =0;i<particles.length;i++){
             var p = particles[i];
 
-            var vx = Math.cos(p.radians)*p.radius;
-            var vy = Math.sin(p.radians)*p.radius +0.4;
-
-            p.x +=vx;
-            p.y +=vy;
-            
-            p.radius *=1-p.speed/100;
+            p.x += (p.fx - p.x)/10;
+			p.y += (p.fy - p.y)/10-(p.alpha-1)*p.speed;
 
             p.alpha -= 0.005;
 
@@ -99,9 +154,12 @@
 
     }
     
-
-    function tick(){
-
+    var lastStamp = 0;
+    function tick(opt = 0){
+        if(opt-lastStamp>2000){
+			lastStamp=opt;
+			createFireworks(Math.random()*canvas.width,Math.random()*canvas.height);
+        }
         context.globalCompositeOperation = 'destination-out';
         context.fillStyle = 'rgba(0,0,0,'+10/100+')';
         context.fillRect(0,0,canvas.width,canvas.height);
